@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"github.com/gorilla/websocket"
+	"github.com/shreyasganesh0/ride-location-tracker/internal/broadcast"
 )
 
 var upgrader = websocket.Upgrader {
@@ -16,7 +17,7 @@ var upgrader = websocket.Upgrader {
 	},
 };
 
-func WsHandler(w http.ResponseWriter, r *http.Request) {
+func WsHandler(hub *broadcast.Hub, w http.ResponseWriter, r *http.Request) {
 
 	conn, err := upgrader.Upgrade(w, r, nil);
 	if err != nil {
@@ -24,26 +25,13 @@ func WsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error while performing ws handshake: %v\n", err);
 		return;
 	}
-	defer conn.Close()
 	log.Println("Established websocket connetion");
 
-	for {
+	client := broadcast.NewClient(hub, conn)
+	hub.RegisterClientCh<- client
 
-		msg_typ, message, err := conn.ReadMessage()
-		if err != nil {
-
-			log.Printf("Error reading message in ws, closing conneciton: %v\n", err);
-			break;
-		}
-
-		err_write := conn.WriteMessage(msg_typ, message);
-		if err_write != nil {
-
-			log.Printf("Failed writing message on websocket: %v\n", err_write);
-			break
-		}
-
-	}
+	go client.ReadFromSocket()
+	go client.WriteToSocket()
 
 	return;
 }
