@@ -8,7 +8,7 @@ import (
 type Hub struct {
 
 	Clients map[*Client]bool
-	BroadcastMessagesCh chan []byte
+	BroadcastMessagesCh chan *Message
 	RegisterClientCh chan *Client
 	UnregisterClientCh chan *Client
 }
@@ -18,7 +18,7 @@ func NewHub() *Hub {
 	var hub Hub;
 
 	hub.Clients = make(map[*Client]bool)
-	hub.BroadcastMessagesCh = make(chan []byte)
+	hub.BroadcastMessagesCh = make(chan *Message)
 	hub.RegisterClientCh = make(chan *Client)
 	hub.UnregisterClientCh = make(chan *Client)
 
@@ -52,7 +52,7 @@ func (h *Hub) Run() {
 				select {
 				case client.OutboundMessagesCh <- msg: //maybe need to pre allocate size
 				default :
-					// assujme client is dead
+					// assume client is dead
 					close(client.OutboundMessagesCh)
 					delete(h.Clients, client)
 				}

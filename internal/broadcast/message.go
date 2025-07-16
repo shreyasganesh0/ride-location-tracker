@@ -1,8 +1,6 @@
 package broadcast
 
 import (
-	"log"
-	"github.com/shreyasganesh0/ride-location-tracker/internal"
 )
 
 type Message struct {

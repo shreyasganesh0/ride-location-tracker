@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"log"
+	"encoding/json"
 	"github.com/gorilla/websocket"
 )
 
@@ -9,7 +10,7 @@ type Client struct {
 
 	Hub *Hub
 	Conn *websocket.Conn
-	OutboundMessagesCh chan []byte
+	OutboundMessagesCh chan *Message
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn) *Client {
@@ -22,7 +23,7 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 
 	client.Conn = conn
 
-	client.OutboundMessagesCh = make(chan []byte, 256)
+	client.OutboundMessagesCh = make(chan *Message, 256)
 
 	return &client
 
@@ -40,14 +41,22 @@ func (c *Client) ReadFromSocket() {
 
 	for {
 
-		_, message, err := c.Conn.ReadMessage()
+		_, msg_byts, err := c.Conn.ReadMessage()
 		if err != nil {
 
 			log.Printf("Error reading message in ws, closing conneciton: %v\n", err);
 			break;
 		}
 
-		c.Hub.BroadcastMessagesCh <- message
+		var message Message
+		err_json := json.Unmarshal(msg_byts, &message)
+		if err_json != nil {
+
+			log.Printf("Error marshalling a message %v\n", err);
+			continue
+		}
+
+		c.Hub.BroadcastMessagesCh <- &message
 	}
 }
 
@@ -66,7 +75,15 @@ func (c *Client) WriteToSocket() {
 				break
 			}
 
-			err_write := c.Conn.WriteMessage(websocket.TextMessage, message);//maybe messagetype to be passed along with outbound message channel
+			msg_byts, err_json := json.Marshal(message); //pointers encode to value?
+			if err_json != nil {
+
+				log.Printf("Recived unmarshallable message: %w\n", err_json);
+				continue
+			}
+
+			err_write := c.Conn.WriteMessage(websocket.TextMessage, msg_byts);//maybe messagetype to be passed along with outbound message channel
+
 			if err_write != nil {
 
 				log.Printf("Failed writing message on websocket: %w\n", err_write);
