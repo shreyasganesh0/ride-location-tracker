@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"github.com/shreyasganesh0/ride-location-tracker/internal/handler"
 	"github.com/shreyasganesh0/ride-location-tracker/internal/broadcast"
+	"github.com/shreyasganesh0/ride-location-tracker/internal/database"
 )
 
 func startup_message_handler() *broadcast.Hub{
@@ -18,6 +19,7 @@ func main() {
 	log.Println("Starting echo server...");
 
 	hub := startup_message_handler()
+	_ = database.NewRedisClient();
 
 	http.HandleFunc("/" , handler.DefHandler);
 	//http.HandleFunc("/echo" , handler.EchoHandler);
