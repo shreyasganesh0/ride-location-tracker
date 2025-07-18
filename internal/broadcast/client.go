@@ -2,8 +2,11 @@ package broadcast
 
 import (
 	"log"
+	"fmt"
 	"encoding/json"
+	"context"
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 )
 
 type Client struct {
@@ -24,7 +27,7 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 	client.Conn = conn
 
 	client.OutboundMessagesCh = make(chan *Message, 256)
-
+	
 	return &client
 
 }
@@ -35,7 +38,7 @@ func (c *Client) CleanupClient() {
 	c.Conn.Close()
 }
 
-func (c *Client) ReadFromSocket() {
+func (c *Client) ReadFromSocket(rdb *redis.Client) {
 
 	defer c.CleanupClient()
 
@@ -54,6 +57,21 @@ func (c *Client) ReadFromSocket() {
 
 			log.Printf("Error marshalling a message %v\n", err);
 			continue
+		}
+
+
+		key := fmt.Sprintf("driver:%s", message.DriverID);
+		insert_location_map := map[string]interface{}{
+
+			"longitude": message.Longitude,
+			"latitude": message.Latitude,
+		}
+		err_set := rdb.HSet(context.Background(), key, insert_location_map).Err();
+		if err_set != nil {
+
+			log.Printf("Error uploding location of driver %s due to: %v\n",
+				message.DriverID, err_set);
+			continue;
 		}
 
 		c.Hub.BroadcastMessagesCh <- &message

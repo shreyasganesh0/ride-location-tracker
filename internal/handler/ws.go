@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"net/http"
+	"github.com/redis/go-redis/v9"
 	"github.com/gorilla/websocket"
 	"github.com/shreyasganesh0/ride-location-tracker/internal/broadcast"
 )
@@ -17,7 +18,8 @@ var upgrader = websocket.Upgrader {
 	},
 };
 
-func WsHandler(hub *broadcast.Hub, w http.ResponseWriter, r *http.Request) {
+func WsHandler(rdb *redis.Client, hub *broadcast.Hub, 
+	w http.ResponseWriter, r *http.Request) {
 
 	conn, err := upgrader.Upgrade(w, r, nil);
 	if err != nil {
@@ -30,7 +32,7 @@ func WsHandler(hub *broadcast.Hub, w http.ResponseWriter, r *http.Request) {
 	client := broadcast.NewClient(hub, conn)
 	hub.RegisterClientCh<- client
 
-	go client.ReadFromSocket()
+	go client.ReadFromSocket(rdb)
 	go client.WriteToSocket()
 
 	return;

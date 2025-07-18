@@ -1,7 +1,7 @@
 .PHONY=all build run
 
 
-BINARY_NAME=echo
+BINARY_NAME=ride-location-tracker
 BUILD_PATH=cmd/$(BINARY_NAME)
 BINARY_PATH=bin/$(BINARY_NAME)
 

@@ -19,12 +19,12 @@ func main() {
 	log.Println("Starting echo server...");
 
 	hub := startup_message_handler()
-	_ = database.NewRedisClient();
+	redis_client := database.NewRedisClient();
 
 	http.HandleFunc("/" , handler.DefHandler);
-	//http.HandleFunc("/echo" , handler.EchoHandler);
+	http.HandleFunc("/echo" , handler.EchoHandler);
 	http.HandleFunc("/ws" , func(w http.ResponseWriter, r *http.Request) { 
-		handler.WsHandler(hub, w, r)
+		handler.WsHandler(redis_client, hub, w, r)
 	});
 	log.Fatal(http.ListenAndServe(":8080", nil));
 }
