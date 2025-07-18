@@ -21,7 +21,7 @@ func main() {
 	hub := startup_message_handler()
 	redis_client := database.NewRedisClient();
 
-	//http.HandleFunc("/" , handler.DefHandler);
+	http.HandleFunc("/" , handler.DefHandler);
 	//http.HandleFunc("/echo" , handler.EchoHandler);
 	http.HandleFunc("/ws" , func(w http.ResponseWriter, r *http.Request) { 
 		handler.WsHandler(redis_client, hub, w, r)
