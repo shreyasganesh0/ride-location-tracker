@@ -6,6 +6,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	DRIVER_HASH = "driverLocationHash"
+)
+
 func NewRedisClient() *redis.Client {
 
 
