@@ -19,7 +19,31 @@
 <body>
 	<div id="map"></div>
 	<script>
-		//js client websocket logic
+		//init map layer
+		var map = L.map('map').setView([51.505, -0.09], 13);
+
+		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			maxZoom: 19,
+			attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+		}).addTo(map);
+
+		const ws = new WebSocket("ws://localhost:8080/ws");
+
+		ws.onopen = (event) => {
+			console.log("Connection established");
+		};
+
+		ws.onmessage = (event) => {
+			console.log("Message recieved: ", event.data);
+		};
+
+		ws.onclose = (event) => {
+			console.log("Connection closed");
+		};
+
+		ws.onerror = (event) => {
+			console.error("Websocket error: ", event);
+		};
 	</script>
 </body>
 </html>
