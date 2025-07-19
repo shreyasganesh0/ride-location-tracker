@@ -28,13 +28,28 @@
 		}).addTo(map);
 
 		const ws = new WebSocket("ws://localhost:8080/ws");
+		const markers = {};
 
 		ws.onopen = (event) => {
 			console.log("Connection established");
 		};
 
 		ws.onmessage = (event) => {
-			console.log("Message recieved: ", event.data);
+
+			const data = JSON.parse(event.data);
+			console.log("Recieved data: ", data);
+
+			if (markers[data.driverId]) {
+
+				markers[data.driverId].setLatLng([data.latitude, data.longitude]);
+			} else {
+
+				const marker = L.marker([data.latitude, data.longitude]).addTo(map);
+				
+				marker.bindPopup(`Driver ID: ${data.driverId}`);
+
+				markers[data.driverId] = marker;
+			}
 		};
 
 		ws.onclose = (event) => {
@@ -44,6 +59,7 @@
 		ws.onerror = (event) => {
 			console.error("Websocket error: ", event);
 		};
+
 	</script>
 </body>
 </html>
