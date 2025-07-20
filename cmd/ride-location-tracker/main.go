@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"fmt"
 	"net/http"
 	"github.com/shreyasganesh0/ride-location-tracker/internal/handler"
 	"github.com/shreyasganesh0/ride-location-tracker/internal/broadcast"
@@ -18,8 +19,14 @@ func startup_message_handler() *broadcast.Hub{
 func main() {
 	log.Println("Starting echo server...");
 
+
 	hub := startup_message_handler()
 	redis_client := database.NewRedisClient();
+	if redis_client == nil {
+
+		log.Fatal(fmt.Errorf("Failed to init redis client"));
+		return;
+	}
 
 	http.HandleFunc("/" , handler.DefHandler);
 	//http.HandleFunc("/echo" , handler.EchoHandler);

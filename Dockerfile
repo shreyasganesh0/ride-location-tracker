@@ -10,8 +10,6 @@ COPY go.mod \
 	index.html \
 	./
 
-RUN ls -laR
-
 RUN go mod download
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server ./cmd/ride-location-tracker/main.go
