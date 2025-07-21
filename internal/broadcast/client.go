@@ -75,6 +75,21 @@ func (c *Client) ReadFromSocket(rdb *redis.Client) {
 			continue;
 		}
 
+		driver_insert_data := map[string]interface{}{
+			"longitude": message.Longitude,
+			"latitude": message.Latitude,
+		}
+
+
+		key := fmt.Sprintf("driver:%s", driverId);
+		err_set := rdb.HSet(context.TODO(), key, &driver_insert_data).Err();
+		if err_set != nil {
+
+			log.Printf("Error uploding location of driver %s due to: %v\n",
+				message.DriverID, err_set);
+			continue;
+		}
+
 		c.Hub.BroadcastMessagesCh <- &message
 	}
 }
