@@ -3,6 +3,8 @@ package database
 import (
 	"os"
 	"log"
+	"time"
+	"math/rand"
 	"context"
 	"github.com/redis/go-redis/v9"
 )
@@ -19,20 +21,37 @@ func NewRedisClient() *redis.Client {
 		redis_addr = "localhost:6379"
 	}
 
-	rdb := redis.NewClient(&redis.Options{
+	log.Println(redis_addr);
 
-		Addr:     redis_addr, 
-		Password: "",
-		DB:       0,
-	})
+	maxRetryAttempts := 5;
+	initialBackoff := 1 * time.Second
 
-	val, err := rdb.Ping(context.Background()).Result()
-	if err != nil {
-		
-		log.Printf("Error returned by Ping: %w\n", err)
+	for i := 0; i < maxRetryAttempts; i++ {
+
+		rdb := redis.NewClient(&redis.Options{
+
+			Addr:     redis_addr, 
+			Password: "",
+			DB:       0,
+		})
+
+		val, err := rdb.Ping(context.Background()).Result()
+		if err == nil {
+
+			log.Printf("Created Redis client...: %+v\n", val);
+			return rdb
+		}
+			
+		log.Printf("Error returned by Ping: %+v\nRetrying...\n", err)
+
+		backoff := initialBackoff * (1 << i);
+		jitter := time.Duration(rand.Int63n(int64(backoff) / 4));
+		sleepDuration := backoff + jitter
+
+		<-time.After(sleepDuration)
 	}
 
-	log.Println("Created Redis client...", val);
+	log.Println("Max retry attempts readched. Connecting to redis client failed.");
 
-	return rdb
+	return nil; 
 }
