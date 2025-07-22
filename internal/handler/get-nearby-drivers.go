@@ -2,8 +2,11 @@ package handler
 
 import (
 	"log"
+	"fmt"
+	"context"
 	"net/http"
 	"strconv"
+	"encoding/json"
 	"github.com/redis/go-redis/v9"
 	"github.com/shreyasganesh0/ride-location-tracker/internal/broadcast"
 )
@@ -13,55 +16,56 @@ func GetNearbyDriversHandler(rdb *redis.Client, w http.ResponseWriter, r *http.R
 	lon := r.FormValue("lon");
 	if lon == "" {
 
-		err_s := log.Sprintf("Invalid longitude value in request")
+		log.Println("Could not parse longitude from req");
+		err_s := fmt.Sprintf("Invalid longitude value in request")
 		err_code := 400
-		WriteClientError(&w, err_s, err_code);
+		WriteClientError(w, err_s, err_code);
 		return;
 	}
 	flt_lon, err := strconv.ParseFloat(lon, 64);
 	if err != nil {
-		log.Printf("Could not parse longitude from req to float: %+v", err);
-		err_s := log.Sprintf("Invalid longitude value in request")
+		log.Println("Could not parse longitude from req to float: ", err);
+		err_s := fmt.Sprintf("Invalid longitude value in request")
 		err_code := 400
-		WriteClientError(&w, err_s, err_code);
+		WriteClientError(w, err_s, err_code);
 		return;
-
 	}
 
 	lat := r.FormValue("lat");
 	if lat == "" {
 
-		err_s := log.Sprintf("Invalid latitude value in request")
+		log.Println("Could not parse latitude from req");
+		err_s := fmt.Sprintf("Invalid latitude value in request")
 		err_code := 400
-		WriteClientError(&w, err_s, err_code);
+		WriteClientError(w, err_s, err_code);
 		return;
 
 	}
 	flt_lat, err := strconv.ParseFloat(lat, 64);
 	if err != nil {
-		log.Printf("Could not parse longitude from req to float: %+v", err);
-		err_s := log.Sprintf("Invalid longitude value in request")
+		log.Println("Could not parse latitude from req to float: ", err);
+		err_s := fmt.Sprintf("Invalid latitude value in request")
 		err_code := 400
-		WriteClientError(&w, err_s, err_code);
+		WriteClientError(w, err_s, err_code);
 		return;
 
 	}
 
 	radius := r.FormValue("radius");
 	if radius == "" {
-		err_s := log.Sprintf("Invalid radius value in request")
+		log.Println("Could not parse radius from req");
+		err_s := fmt.Sprintf("Invalid radius value in request")
 		err_code := 400
-		WriteClientError(&w, err_s, err_code);
+		WriteClientError(w, err_s, err_code);
 		return;
 	}
 	flt_radius, err := strconv.ParseFloat(radius, 64);
 	if err != nil {
-		log.Printf("Could not parse longitude from req to float: %+v", err);
-		err_s := log.Sprintf("Invalid longitude value in request")
+		log.Println("Could not parse radius from req to float: ", err);
+		err_s := fmt.Sprintf("Invalid radius value in request")
 		err_code := 400
-		WriteClientError(&w, err_s, err_code);
+		WriteClientError(w, err_s, err_code);
 		return;
-
 	}
 
 
@@ -74,23 +78,50 @@ func GetNearbyDriversHandler(rdb *redis.Client, w http.ResponseWriter, r *http.R
 		}).Result();
 	if err_q != nil {
 
-		log.Printf("Failed to get query for driver: %+v\n", err_q);
-		err_s := log.Sprintf("Failed to get drivers");
+		log.Println("Failed to get query for driver: ", err_q);
+		err_s := fmt.Sprintf("Failed to get drivers");
 		err_code := 400
-		WriteClientError(&w, err_s, err_code);
+		WriteClientError(w, err_s, err_code);
 		return;
 	}
 
 
-	for driverId := range res {
-		
-		driver_byts, err := GetDriverDetails(driverId, rdb, w, r)
-		curr_msg := broadcast.Message{
+	type MessageArr struct {
 
-			DriverID: driverId,
-
+		Messages []broadcast.Message `json:"messages"`
 	}
 
+	var msgs MessageArr
+
+	for _, driverId := range res {
+		
+		message, err := GetDriverDetails(driverId, rdb, w, r)
+		if err != nil {
+
+			log.Println("Recieved error when getting driver details: \n", err);
+			continue;
+		}
+
+		msgs.Messages = append(msgs.Messages, message)
+	}
+
+	msg_byts, err := json.Marshal(msgs)
+	if err != nil {
+
+		log.Println("Error parsing message to bytes: \n", err)
+		err_s := fmt.Sprintf("Server failed to parse location\n");
+		code := 500
+		WriteClientError(w, err_s, code)
+		return;
+	}
+
+	_, err_write := w.Write(msg_byts);
+	if err_write != nil {
+
+		log.Println("Error writing message: \n", err)
+	}
+
+	return;
 
 }
 

@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"log"
+	"fmt"
 	"encoding/json"
 	"context"
 	"github.com/gorilla/websocket"
@@ -60,9 +61,9 @@ func (c *Client) ReadFromSocket(rdb *redis.Client) {
 		}
 
 
-		key := "driver_locations" 
+		geo_key := "driver_locations" 
 
-		err_add := rdb.GeoAdd(context.TODO(), key, &redis.GeoLocation{
+		err_add := rdb.GeoAdd(context.TODO(), geo_key, &redis.GeoLocation{
 
 			Longitude: message.Longitude,
 			Latitude: message.Latitude,
@@ -81,8 +82,8 @@ func (c *Client) ReadFromSocket(rdb *redis.Client) {
 		}
 
 
-		key := fmt.Sprintf("driver:%s", driverId);
-		err_set := rdb.HSet(context.TODO(), key, &driver_insert_data).Err();
+		hset_key := fmt.Sprintf("driver:%s", message.DriverID);
+		err_set := rdb.HSet(context.TODO(), hset_key, driver_insert_data).Err();
 		if err_set != nil {
 
 			log.Printf("Error uploding location of driver %s due to: %v\n",

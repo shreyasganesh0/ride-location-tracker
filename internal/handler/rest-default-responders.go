@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func WriteClientError(w *http.ResponseWriter, resp string, code int) {
+func WriteClientError(w http.ResponseWriter, resp string, code int) {
 
 	w.WriteHeader(code)
 	_, err := w.Write([]byte(resp));

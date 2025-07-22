@@ -37,6 +37,10 @@ func main() {
 		func(w http.ResponseWriter, r *http.Request) {
 			handler.GetDriverLocationHandler(redis_client, w, r)
 	});
+	http.HandleFunc("GET /api/drivers/nearby", 
+		func(w http.ResponseWriter, r *http.Request) {
+			handler.GetNearbyDriversHandler(redis_client, w, r)
+	});
 	log.Fatal(http.ListenAndServe(":8080", nil));
 }
 
