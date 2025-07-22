@@ -91,7 +91,9 @@ func GetNearbyDriversHandler(rdb *redis.Client, w http.ResponseWriter, r *http.R
 		Messages []broadcast.Message `json:"messages"`
 	}
 
-	var msgs MessageArr
+	msgs := MessageArr{
+		Messages: make([]broadcast.Message,0),
+	}
 
 	for _, driverId := range res {
 		
