@@ -67,6 +67,21 @@ You can send this from a new terminal using echo:
 echo '{"latitude": 12.345, "longitude": 67.890, "driverId": "driver-xyz-789"}' | websocat -n1 ws://localhost:8080/ws
 ```
 
+3. Request Driver Details:
+
+Retrieve driver details using driver id
+```
+ curl "http://localhost:8080/api/drivers/driver-001"
+ ```
+
+ 4. Get Nearby Drivers:
+
+ Given lat long and search radius, the server will be able to provide any nearby drivers that were previously stored on the database using a Geohash index.
+ ```
+  curl "http://localhost:8080/api/drivers/nearby?lat=40.73&lon=-73.99&radius=5"
+
+ ```
+
 Any client connected (from step 1) will instantly receive this JSON object.
 
 ## Architectural Decisions
