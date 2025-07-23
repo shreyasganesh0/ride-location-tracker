@@ -41,6 +41,10 @@ func main() {
 		func(w http.ResponseWriter, r *http.Request) {
 			handler.GetNearbyDriversHandler(redis_client, w, r)
 	});
+	http.HandleFunc("POST /api/auth/login",
+		func(w http.ResponseWriter, r *http.Request) {
+			handler.AuthDriverHandler(w, r)
+	});
 	log.Fatal(http.ListenAndServe(":8080", nil));
 }
 
