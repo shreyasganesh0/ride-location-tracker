@@ -81,6 +81,18 @@ Retrieve driver details using driver id
   curl "http://localhost:8080/api/drivers/nearby?lat=40.73&lon=-73.99&radius=5"
 
  ```
+### JWT Authentication Flow:
+ - Client sends a request to the auth endpoint /api/auth/login
+    ```
+    curl -s -X POST -H "Content-Type: application/json" -d '{"driverId": "driver-007"}' http://localhost:8080/api/auth/login
+    ```
+- Future requests to post location messages to the websocket endpoint must include
+  the token in the message
+  ```
+   websocat "ws://localhost:8080/ws?token=${TOKEN}"
+   ```
+- If the token sent isnt verifiable the driver will not be able to post its location
+
 
 Any client connected (from step 1) will instantly receive this JSON object.
 
