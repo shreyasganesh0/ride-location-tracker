@@ -15,9 +15,10 @@ type Client struct {
 	Hub *Hub
 	Conn *websocket.Conn
 	OutboundMessagesCh chan *Message
+	DriverID string
 }
 
-func NewClient(hub *Hub, conn *websocket.Conn) *Client {
+func NewClient(driverId string, hub *Hub, conn *websocket.Conn) *Client {
 
 	log.Println("Creating a new client...")
 
@@ -26,6 +27,8 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 	client.Hub = hub
 
 	client.Conn = conn
+
+	client.DriverID = driverId
 
 	client.OutboundMessagesCh = make(chan *Message, 256)
 	
@@ -67,12 +70,12 @@ func (c *Client) ReadFromSocket(rdb *redis.Client) {
 
 			Longitude: message.Longitude,
 			Latitude: message.Latitude,
-			Name: message.DriverID,
+			Name: c.DriverID,
 		}).Err();
 		if err_add != nil {
 
 			log.Printf("Error uploding location of driver %s due to: %v\n",
-				message.DriverID, err_add);
+				c.DriverID, err_add);
 			continue;
 		}
 
@@ -82,12 +85,12 @@ func (c *Client) ReadFromSocket(rdb *redis.Client) {
 		}
 
 
-		hset_key := fmt.Sprintf("driver:%s", message.DriverID);
+		hset_key := fmt.Sprintf("driver:%s", c.DriverID);
 		err_set := rdb.HSet(context.TODO(), hset_key, driver_insert_data).Err();
 		if err_set != nil {
 
 			log.Printf("Error uploding location of driver %s due to: %v\n",
-				message.DriverID, err_set);
+				c.DriverID, err_set);
 			continue;
 		}
 

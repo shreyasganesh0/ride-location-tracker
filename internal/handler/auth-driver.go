@@ -23,10 +23,17 @@ func AuthDriverHandler(w http.ResponseWriter, r *http.Request) {
 		return;
 	}
 
-	driverId := r.PostFormValue("driverId")
-	if driverId == ""{
+	type DriverStruct struct {
+		DriverId string `json:"driverId"`
+	}
+
+	var driverstruct DriverStruct
+
+
+	err := json.NewDecoder(r.Body).Decode(&driverstruct);
+	if err != nil || driverstruct.DriverId == ""{
 		
-		log.Println("Couldnt get driverId secret");
+		log.Println("Couldnt get driverId secret: ", driverstruct.DriverId);
 		code := 400
 		err_s := fmt.Sprintf("Invalid message body\n");
 		WriteClientError(w, err_s, code);
@@ -37,7 +44,7 @@ func AuthDriverHandler(w http.ResponseWriter, r *http.Request) {
 
 		"exp": jwt.NewNumericDate(time.Now().Add(1 * time.Hour)) ,
 		"iss": "ride-location-tracker",
-		"did": driverId,
+		"did": driverstruct.DriverId,
 	});
 
 	ss, err := token.SignedString([]byte(hmacSecret));
@@ -59,7 +66,6 @@ func AuthDriverHandler(w http.ResponseWriter, r *http.Request) {
 		WriteClientError(w, err_s, code);
 		return
 	}
-
 
 	_, err = w.Write(jwt_resp_byts)
 	if err != nil {

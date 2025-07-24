@@ -9,6 +9,7 @@ services:
       - redis
     environment:
       - REDIS_ADDR=redis:6379
+      - JWT_SECRET=test-secret-for-env
 
   redis:
     image: "redis/redis-stack-server:latest"

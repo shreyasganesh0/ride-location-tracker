@@ -25,7 +25,7 @@ func GetDriverDetails(driverId string, rdb *redis.Client, w http.ResponseWriter,
 		return message, err_s;
 	}
 
-	message.DriverID = driverId
+	//message.DriverID = driverId
 
 	for key, val := range results {
 
