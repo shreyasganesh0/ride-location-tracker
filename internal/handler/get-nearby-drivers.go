@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"encoding/json"
 	"github.com/redis/go-redis/v9"
-	"github.com/shreyasganesh0/ride-location-tracker/internal/broadcast"
+	"github.com/shreyasganesh0/ride-location-tracker/internal/pubsub"
 )
 
 func GetNearbyDriversHandler(rdb *redis.Client, w http.ResponseWriter, r *http.Request) {
@@ -88,11 +88,11 @@ func GetNearbyDriversHandler(rdb *redis.Client, w http.ResponseWriter, r *http.R
 
 	type MessageArr struct {
 
-		Messages []broadcast.Message `json:"messages"`
+		Messages []pubsub.Message `json:"messages"`
 	}
 
 	msgs := MessageArr{
-		Messages: make([]broadcast.Message,0),
+		Messages: make([]pubsub.Message,0),
 	}
 
 	for _, driverId := range res {

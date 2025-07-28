@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"context"
 	"github.com/redis/go-redis/v9"
-	"github.com/shreyasganesh0/ride-location-tracker/internal/broadcast"
+	"github.com/shreyasganesh0/ride-location-tracker/internal/pubsub"
 )
 
-func GetDriverDetails(driverId string, rdb *redis.Client, w http.ResponseWriter, r *http.Request) (broadcast.Message, error) {
+func GetDriverDetails(driverId string, rdb *redis.Client, w http.ResponseWriter, r *http.Request) (pubsub.Message, error) {
 
-	var message broadcast.Message
+	var message pubsub.Message
 	key := fmt.Sprintf("driver:%s", driverId);
 
 	results, err := rdb.HGetAll(context.TODO(), key).Result()

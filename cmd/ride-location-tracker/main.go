@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"github.com/shreyasganesh0/ride-location-tracker/internal/handler"
-	"github.com/shreyasganesh0/ride-location-tracker/internal/broadcast"
+	"github.com/shreyasganesh0/ride-location-tracker/internal/pubsub"
 	"github.com/shreyasganesh0/ride-location-tracker/internal/database"
 )
 
-func startup_message_handler() *broadcast.Hub{
+func startup_message_handler() *pubsub.Hub{
 
-	hub := broadcast.NewHub()
+	hub := pubsub.NewHub()
 	go hub.Run()
 	return hub
 }

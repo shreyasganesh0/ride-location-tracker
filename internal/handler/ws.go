@@ -8,7 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
 	"github.com/gorilla/websocket"
-	"github.com/shreyasganesh0/ride-location-tracker/internal/broadcast"
+	"github.com/shreyasganesh0/ride-location-tracker/internal/pubsub"
 )
 
 var upgrader = websocket.Upgrader {
@@ -21,7 +21,7 @@ var upgrader = websocket.Upgrader {
 	},
 };
 
-func WsHandler(rdb *redis.Client, hub *broadcast.Hub, 
+func WsHandler(rdb *redis.Client, hub *pubsub.Hub, 
 	w http.ResponseWriter, r *http.Request) {
 
 	token_str := r.FormValue("token");
@@ -67,7 +67,7 @@ func WsHandler(rdb *redis.Client, hub *broadcast.Hub,
 	}
 	log.Println("Established websocket connetion");
 
-	client := broadcast.NewClient(driverId, hub, conn)
+	client := pubsub.NewClient(driverId, hub, conn)
 	hub.RegisterClientCh<- client
 
 	go client.ReadFromSocket(rdb)
