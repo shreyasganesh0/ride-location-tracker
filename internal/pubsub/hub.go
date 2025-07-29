@@ -7,20 +7,22 @@ import (
 
 type Hub struct {
 
-	Clients map[*Client]bool
-	BroadcastMessagesCh chan *Message
-	RegisterClientCh chan *Client
-	UnregisterClientCh chan *Client
+	Clients				map[*Client]bool
+	PublishMessagesCh   chan *MessagePayload
+	RegisterClientCh    chan *Client
+	UnregisterClientCh  chan *Client
+	TopicMap 		    map[string][]*Client
 }
 
 func NewHub() *Hub {
 
 	var hub Hub;
 
-	hub.Clients = make(map[*Client]bool)
-	hub.BroadcastMessagesCh = make(chan *Message)
-	hub.RegisterClientCh = make(chan *Client)
-	hub.UnregisterClientCh = make(chan *Client)
+	hub.Clients             = make(map[*Client]bool)
+	hub.PublishMessagesCh   = make(chan *MessagePayload)
+	hub.RegisterClientCh 	= make(chan *Client)
+	hub.UnregisterClientCh  = make(chan *Client)
+	hub.TopicMap		    = make(map[string][]*Client)
 
 	return &hub
 }
@@ -45,17 +47,11 @@ func (h *Hub) Run() {
 				close(c_u.OutboundMessagesCh)
 			}
 
-		case msg := <-h.BroadcastMessagesCh:
+		case payload := <-h.PublishMessagesCh:
 
-			for client, _ := range h.Clients {
-				
-				select {
-				case client.OutboundMessagesCh <- msg: //maybe need to pre allocate size
-				default :
-					// assume client is dead
-					close(client.OutboundMessagesCh)
-					delete(h.Clients, client)
-				}
+			for _, c := range h.TopicMap[payload.Topic] {
+
+				c.OutboundMessagesCh <- &payload.Location
 			}
 		}
 

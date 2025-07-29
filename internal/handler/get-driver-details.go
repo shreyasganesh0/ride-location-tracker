@@ -10,9 +10,9 @@ import (
 	"github.com/shreyasganesh0/ride-location-tracker/internal/pubsub"
 )
 
-func GetDriverDetails(driverId string, rdb *redis.Client, w http.ResponseWriter, r *http.Request) (pubsub.Message, error) {
+func GetDriverDetails(driverId string, rdb *redis.Client, w http.ResponseWriter, r *http.Request) (pubsub.LatLng, error) {
 
-	var message pubsub.Message
+	var message pubsub.LatLng
 	key := fmt.Sprintf("driver:%s", driverId);
 
 	results, err := rdb.HGetAll(context.TODO(), key).Result()

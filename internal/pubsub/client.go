@@ -7,6 +7,7 @@ import (
 	"context"
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
+	"github.com/mmcloughlin/geohash"
 )
 
 
@@ -14,7 +15,7 @@ type Client struct {
 
 	Hub *Hub
 	Conn *websocket.Conn
-	OutboundMessagesCh chan *Message
+	OutboundMessagesCh chan *LatLng
 	DriverID string
 }
 
@@ -30,8 +31,8 @@ func NewClient(driverId string, hub *Hub, conn *websocket.Conn) *Client {
 
 	client.DriverID = driverId
 
-	client.OutboundMessagesCh = make(chan *Message, 256)
-	
+	client.OutboundMessagesCh = make(chan *LatLng, 256)
+
 	return &client
 
 }
@@ -63,13 +64,12 @@ func (c *Client) ReadFromSocket(rdb *redis.Client) {
 			continue
 		}
 
-
 		geo_key := "driver_locations" 
 
 		err_add := rdb.GeoAdd(context.TODO(), geo_key, &redis.GeoLocation{
 
-			Longitude: message.Longitude,
-			Latitude: message.Latitude,
+			Longitude: message.Payload.Location.Longitude,
+			Latitude: message.Payload.Location.Latitude,
 			Name: c.DriverID,
 		}).Err();
 		if err_add != nil {
@@ -80,8 +80,8 @@ func (c *Client) ReadFromSocket(rdb *redis.Client) {
 		}
 
 		driver_insert_data := map[string]interface{}{
-			"longitude": message.Longitude,
-			"latitude": message.Latitude,
+			"longitude": message.Payload.Location.Longitude,
+			"latitude": message.Payload.Location.Latitude,
 		}
 
 
@@ -94,7 +94,21 @@ func (c *Client) ReadFromSocket(rdb *redis.Client) {
 			continue;
 		}
 
-		c.Hub.BroadcastMessagesCh <- &message
+		switch (message.Type) {
+		case Subscribe:
+
+			curr_topic := message.Payload.Topic
+			c.Hub.TopicMap[curr_topic] = append(c.Hub.TopicMap[curr_topic], c);
+
+		case PublishLocation:
+
+			topic := geohash.EncodeWithPrecision(message.Payload.Location.Latitude, 
+				message.Payload.Location.Longitude, 6);
+
+			message.Payload.Topic = topic
+			c.Hub.PublishMessagesCh <- &message.Payload
+		}
+
 	}
 }
 
@@ -120,7 +134,7 @@ func (c *Client) WriteToSocket() {
 				continue
 			}
 
-			err_write := c.Conn.WriteMessage(websocket.TextMessage, msg_byts);//maybe messagetype to be passed along with outbound message channel
+			err_write := c.Conn.WriteMessage(websocket.TextMessage, msg_byts);
 
 			if err_write != nil {
 
