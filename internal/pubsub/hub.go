@@ -11,7 +11,7 @@ type Hub struct {
 	PublishMessagesCh   chan *MessagePayload
 	RegisterClientCh    chan *Client
 	UnregisterClientCh  chan *Client
-	TopicMap 		    map[string][]*Client
+	TopicMap 		    map[string]map[*Client]bool
 	TopicSubCh			chan *Subscription
 }
 
@@ -23,7 +23,7 @@ func NewHub() *Hub {
 	hub.PublishMessagesCh   = make(chan *MessagePayload)
 	hub.RegisterClientCh 	= make(chan *Client)
 	hub.UnregisterClientCh  = make(chan *Client)
-	hub.TopicMap		    = make(map[string][]*Client)
+	hub.TopicMap		    = make(map[string]map[*Client]bool)
 	hub.TopicSubCh			= make(chan *Subscription);
 
 	return &hub
@@ -45,6 +45,18 @@ func (h *Hub) Run() {
 			_, exists := h.Clients[c_u]
 			if exists {
 
+				for topic, clients := range h.TopicMap {
+
+					if _, ok := clients[c_u]; ok {
+
+						delete(clients, c_u)
+
+						if len(clients) == 0 {
+
+							delete(h.TopicMap, topic)
+						}
+					}
+				}
 				delete(h.Clients, c_u);
 				close(c_u.OutboundMessagesCh)
 			}
@@ -53,7 +65,7 @@ func (h *Hub) Run() {
 
 			if clients, ok := h.TopicMap[payload.Topic]; !ok {
 
-				for _, client := range clients {
+				for client := range clients {
 
 					client.OutboundMessagesCh <- &payload.Location
 				}
@@ -64,7 +76,12 @@ func (h *Hub) Run() {
 			 curr_topic := subs.Topic
 			 c          := subs.Client;
 
-			 h.TopicMap[curr_topic] = append(c.Hub.TopicMap[curr_topic], c);
+			 if _, ok := h.TopicMap[subs.Topic]; ok {
+				 h.TopicMap[curr_topic] = make(map[*Client]bool)
+			 }
+
+			 h.TopicMap[curr_topic][c] = true;
+			 log.Printf("Client %s subscribed to topic %s\n", c, curr_topic);
 
 		}
 
