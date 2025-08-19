@@ -76,7 +76,7 @@ func (h *Hub) Run() {
 			 curr_topic := subs.Topic
 			 c          := subs.Client;
 
-			 if _, ok := h.TopicMap[subs.Topic]; ok {
+			 if _, ok := h.TopicMap[subs.Topic]; !ok {
 				 h.TopicMap[curr_topic] = make(map[*Client]bool)
 			 }
 

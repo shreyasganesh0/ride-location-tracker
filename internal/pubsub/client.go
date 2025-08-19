@@ -114,6 +114,7 @@ func (c *Client) ReadFromSocket(rdb *redis.Client) {
 			topic := geohash.EncodeWithPrecision(message.Payload.Location.Latitude, 
 				message.Payload.Location.Longitude, 6);
 
+			message.Payload.Location.DriverID = c.DriverID
 			message.Payload.Topic = topic
 			c.Hub.PublishMessagesCh <- &message.Payload
 		}
