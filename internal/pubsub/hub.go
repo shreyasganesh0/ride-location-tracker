@@ -12,6 +12,7 @@ type Hub struct {
 	RegisterClientCh    chan *Client
 	UnregisterClientCh  chan *Client
 	TopicMap 		    map[string][]*Client
+	TopicSubCh			chan *Subscription
 }
 
 func NewHub() *Hub {
@@ -23,6 +24,7 @@ func NewHub() *Hub {
 	hub.RegisterClientCh 	= make(chan *Client)
 	hub.UnregisterClientCh  = make(chan *Client)
 	hub.TopicMap		    = make(map[string][]*Client)
+	hub.TopicSubCh			= make(chan *Subscription);
 
 	return &hub
 }
@@ -49,10 +51,21 @@ func (h *Hub) Run() {
 
 		case payload := <-h.PublishMessagesCh:
 
-			for _, c := range h.TopicMap[payload.Topic] {
+			if clients, ok := h.TopicMap[payload.Topic]; !ok {
 
-				c.OutboundMessagesCh <- &payload.Location
+				for _, client := range clients {
+
+					client.OutboundMessagesCh <- &payload.Location
+				}
 			}
+
+		case subs := <-h.TopicSubCh:
+
+			 curr_topic := subs.Topic
+			 c          := subs.Client;
+
+			 h.TopicMap[curr_topic] = append(c.Hub.TopicMap[curr_topic], c);
+
 		}
 
 	}

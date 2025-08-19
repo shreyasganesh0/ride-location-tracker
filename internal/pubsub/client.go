@@ -19,6 +19,12 @@ type Client struct {
 	DriverID string
 }
 
+type Subscription struct {
+
+	Topic  string 
+	Client *Client
+}
+
 func NewClient(driverId string, hub *Hub, conn *websocket.Conn) *Client {
 
 	log.Println("Creating a new client...")
@@ -95,10 +101,13 @@ func (c *Client) ReadFromSocket(rdb *redis.Client) {
 		}
 
 		switch (message.Type) {
+
 		case Subscribe:
 
-			curr_topic := message.Payload.Topic
-			c.Hub.TopicMap[curr_topic] = append(c.Hub.TopicMap[curr_topic], c);
+			c.Hub.TopicSubCh <- &Subscription {
+				Topic: message.Payload.Topic,
+				Client: c,
+			}
 
 		case PublishLocation:
 
