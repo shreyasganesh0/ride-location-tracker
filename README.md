@@ -1,117 +1,95 @@
-# Real-Time Location Tracker
-A real-time location tracking service backend built with Go and WebSockets, inspired by the architecture of ride-sharing apps like Uber. This project is designed to handle multiple concurrent clients (drivers) and broadcast their location data in real-time.
+# Real-Time Ride Location Tracker (Go)
 
-## Current Status
-The service is currently capable of:
+This is a high-performance backend system built in Go that simulates a real-time ride-sharing location tracker (like for Uber or DoorDash).
 
-- Managing Multiple Clients: Accepts and manages numerous concurrent WebSocket connections.
+Drivers can publish their location, and clients can subscribe to a real-time feed of all driver movements within their vicinity.
 
-- Structured Data Broadcast: Receives location updates from any client as a JSON object.
+This project was built to explore the challenges of real-time, stateful, and concurrent systems. The goal was to build the infrastructure for a "fan-out" system from scratch, using modern Go practices and a high-performance database (Redis).
 
-- Real-Time Broadcasting: Instantly broadcasts the received location data to all other connected clients.
+## Core Features
 
-- Resilient Concurrency: Uses a non-blocking, channel-based architecture to ensure a single slow or disconnected client cannot impact the entire system.
+* **Real-Time WebSocket API:** A WebSocket endpoint (`/ws`) allows clients to establish a persistent connection to receive live location updates.
+* **In-Memory Pub/Sub Hub:** A custom, concurrent-safe Pub/Sub "Hub" was built from scratch using Go channels. This hub manages all active WebSocket clients, handling client registration, de-registration, and the broadcasting of messages.
+* **Redis Geospatial Storage:** Driver locations are stored in **Redis** using the `GEOADD` command. This allows for incredibly fast geospatial queries.
+* **Geofencing/Proximity Queries:** A REST endpoint (`/api/drivers`) that uses the Redis `GEORADIUS` command to find all drivers within a specified radius of a given latitude/longitude.
+* **Containerized:** Fully containerized with a `docker-compose.yml` for easy local development, spinning up both the Go application and its Redis dependency.
 
-## Getting Started
-Follow these instructions to get the project running on your local machine.
+## Technical Deep Dive
 
-## Prerequisites
-- Go (Version 1.18+ recommended)
-- websocat (A command-line WebSocket client for testing)
+### 1. Concurrent Pub/Sub Hub
 
-## Installation & Running
-- Clone the repository:
+The core of this application is the `pubsub.Hub`. It runs as a single goroutine and uses channels to safely coordinate concurrent access from many different client connections. This avoids the need for complex mutexes.
 
-``` 
+* `register chan`: New clients are sent here.
+* `unregister chan`: Disconnected clients are sent here.
+* `broadcast chan`: Messages sent here are "fanned-out" to all connected clients.
 
-git clone https://github.com/your-username/location-tracker.git
-cd location-tracker
-```
+This code from `internal/pubsub/hub.go` shows the main event loop of the hub:
 
-- Run the server:
-
-```
-go run .
-The server will start on localhost:8080.
-```
-
-## Usage & API
-The server exposes a single WebSocket endpoint for real-time communication.
-
-WebSocket Endpoint: /ws
-This is the primary endpoint for clients to connect and send/receive location updates.
-
-1. Connecting a Client:
-
-Use websocat to establish a persistent connection. Open a new terminal for each client.
-
-```
-websocat ws://localhost:8080/ws
-```
-
-2. Sending a Location Update:
-
-To simulate a driver sending their location, send a JSON object to the server. The server expects the following format:
-
-JSON
-
-{
-  "latitude": 12.345,
-  "longitude": 67.890,
-  "driverId": "driver-xyz-789"
+```go
+// From: internal/pubsub/hub.go
+func (h *Hub) Run() {
+	for {
+		select {
+		case client := <-h.register:
+			// Register a new client and add it to the map
+			h.clients[client] = true
+		
+		case client := <-h.unregister:
+			// Unregister a client, close its send channel
+			if _, ok := h.clients[client]; ok {
+				delete(h.clients, client)
+				close(client.send)
+			}
+		
+		case message := <-h.broadcast:
+			// Broadcast a message to all connected clients
+			for client := range h.clients {
+				select {
+				case client.send <- message:
+				default:
+					// Failed to send, assume client is dead
+					close(client.send)
+					delete(h.clients, client)
+				}
+			}
+		}
+	}
 }
-You can send this from a new terminal using echo:
-
-
-```
-echo '{"latitude": 12.345, "longitude": 67.890, "driverId": "driver-xyz-789"}' | websocat -n1 ws://localhost:8080/ws
 ```
 
-3. Request Driver Details:
+2. WebSocket Connection Handling
+The ws.go handler is responsible for upgrading an HTTP request to a persistent WebSocket connection. It then creates a Client struct and registers it with the Hub. This seamlessly connects the networking layer (HTTP/WebSockets) to the application's concurrency model (the Pub/Sub hub).
 
-Retrieve driver details using driver id
+```Go
+
+// From: internal/handler/ws.go
+func (h *Handler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := h.Upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		// ... error handling ...
+		return
+	}
+
+	// Create a new client for this WebSocket connection
+	client := pubsub.NewClient(h.Hub, conn)
+	
+	// Register the new client with the central hub
+	h.Hub.Register(client)
+
+	// Start the read/write goroutines for this client
+	go client.WritePump()
+	go client.ReadPump()
+}
 ```
- curl "http://localhost:8080/api/drivers/driver-001"
- ```
 
- 4. Get Nearby Drivers:
-
- Given lat long and search radius, the server will be able to provide any nearby drivers that were previously stored on the database using a Geohash index.
- ```
-  curl "http://localhost:8080/api/drivers/nearby?lat=40.73&lon=-73.99&radius=5"
-
- ```
-### JWT Authentication Flow:
- - Client sends a request to the auth endpoint /api/auth/login
-    ```
-    curl -s -X POST -H "Content-Type: application/json" -d '{"driverId": "driver-007"}' http://localhost:8080/api/auth/login
-    ```
-- Future requests to post location messages to the websocket endpoint must include
-  the token in the message
-  ```
-   websocat "ws://localhost:8080/ws?token=${TOKEN}"
-   ```
-- If the token sent isnt verifiable the driver will not be able to post its location
-
-
-Any client connected (from step 1) will instantly receive this JSON object.
-
-## Architectural Decisions
-This section documents key engineering decisions to showcase the thought process behind the design.
-
-Concurrency Model (Channels over Mutexes): We use Go's native channels and goroutines (CSP) to manage state changes within the Hub. This avoids the need for explicit mutex locks, preventing potential deadlocks and making the concurrent code simpler and easier to reason about. All state mutations are handled by a single hub.run() goroutine, ensuring safe, sequential access.
-
-Decoupled Client Pumps: Each client connection spawns two dedicated goroutines (readPump and writePump). This decouples network I/O from the central Hub. The Hub communicates with a client via a buffered channel, so a slow network connection on one client will not block the Hub from broadcasting to others. This makes the system highly resilient.
-
-Structured Data Contract (JSON): We transitioned from raw byte streams to strongly-typed Go structs with json tags. This enforces a clear and versionable API contract, making the system robust against malformed data and easier for new clients (like a future frontend) to integrate with.
-
-Roadmap & Future Milestones
-[ ] Persistence: Store the last known location of each driver in a database (e.g., Redis or PostgreSQL).
-
-[ ] Frontend Client: Build a simple web frontend with Leaflet.js or Mapbox to visualize drivers on a map.
-
-[ ] Geospatial Indexing: Implement a method to efficiently query for drivers near a given point.
-
-[ ] Authentication: Secure the WebSocket endpoint so only authenticated drivers can connect and send updates.
-
-[ ] Containerization: Dockerize the application and create a k8s deployment configuration.
+## How to Run
+1. Make sure you have Docker and Docker Compose installed.
+2. Clone the repository: ```git clone https://github.com/shreyasganesh0/ride-location-tracker.git```
+3. Start the application and the Redis database:
+```Bash
+docker-compose up
+```
+4. The server will be running on http://localhost:8080.
+  . REST API is at /api/...
+  . WebSocket endpoint is at /ws
